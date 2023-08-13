@@ -1,0 +1,145 @@
+import type {
+  cookies as nextCookies,
+  headers as nextHeaders,
+} from "next/headers";
+import { getLocale } from "./locale";
+import { IntlMessageFormat } from "intl-messageformat";
+import { cache } from "react";
+import { optic_, get } from "optics-ts";
+import type { Join, Simplify, Split, ValueOf } from "type-fest";
+
+type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
+
+type XOR<T, U> = T | U extends Object
+  ? (Without<T, U> & U) | (Without<U, T> & T)
+  : T | U;
+
+type AllXOR<T extends any[]> = T extends [infer Only]
+  ? Only
+  : T extends [infer A, infer B, ...infer Rest]
+  ? AllXOR<[XOR<A, B>, ...Rest]>
+  : never;
+
+type Contra<T> = T extends any ? (arg: T) => void : never;
+
+type InferContra<T> = [T] extends [(arg: infer I) => void] ? I : never;
+
+type PickOne<T> = InferContra<InferContra<Contra<Contra<T>>>>;
+
+type Union2Tuple<T> = PickOne<T> extends infer U
+  ? Exclude<T, U> extends never
+    ? [T]
+    : [...Union2Tuple<Exclude<T, U>>, U]
+  : never;
+
+type MergeAllLocales<
+  Locales extends Record<
+    string,
+    {
+      [key: string]: LocaleEntry;
+    }
+  >,
+> = Simplify<AllXOR<Union2Tuple<ValueOf<Locales>>>>;
+
+type UnPromisify<T> = T extends Promise<infer R> ? R : T;
+
+type TraverseObject<
+  Keys extends string[],
+  Object extends Record<string, any>,
+> = Keys extends [infer key, ...infer rest]
+  ? key extends keyof Object
+    ? Object[key] extends Record<string, any>
+      ? rest extends string[]
+        ? TraverseObject<rest, Object[key]>
+        : never
+      : Object[key]
+    : undefined
+  : Object;
+
+type TraverseLocaleMap<
+  Keys extends string[],
+  Locales extends LocaleMap,
+> = ValueOf<{
+  [K in keyof Locales]: TraverseObject<Keys, Locales[K]>;
+}>;
+
+type DeepKeys<T extends Record<string, any>> = {
+  [K in keyof T]: T[K] extends object
+    ? `${string & K}.${DeepKeys<T[K]>}`
+    : `${string & K}`;
+}[keyof T];
+
+type DeepKeysFromLocaleMap<Locales> = {
+  [K in keyof Locales]: Locales extends Record<string, any>
+    ? DeepKeys<Locales[K]>
+    : never;
+}[keyof Locales];
+
+
+
+// waiting for https://github.com/microsoft/TypeScript/issues/32063 so we can import json's as const
+type TestLocales = {
+  en: typeof import("../test/src/intl/en.json");
+  de: typeof import("../test/src/intl/de.json");
+};
+
+type MergedLocales = MergeAllLocales<TestLocales>;
+
+type Test = TraverseLocaleMap<["index", "title"], TestLocales>;
+
+type Keys = DeepKeysFromLocaleMap<TestLocales>;
+
+const createTranslations = <
+  Locales,
+  Keys extends DeepKeysFromLocaleMap<Locales>,
+  Config extends
+    | {
+        defaultLocale: keyof UnPromisify<Locales>;
+        locales: () => Promise<Locales>;
+      }
+    | {
+        defaultLocale: keyof Locales;
+        locales: Locales;
+      },
+>({
+  ...config
+}: Config) => {
+  return async ({
+    headers,
+    cookies,
+  }: {
+    headers: () => ReturnType<typeof nextHeaders>;
+    cookies: () => ReturnType<typeof nextCookies>;
+  }) => {
+    const availableLocales =
+      typeof config.locales === "function"
+        ? await config.locales()
+        : config.locales;
+
+    const localeKeys = Object.keys(availableLocales);
+
+    const defaultLocale = config.defaultLocale as string;
+
+    const locale = getLocale(headers(), cookies(), localeKeys, defaultLocale);
+
+    const localeData = availableLocales[locale];
+
+    const localeKey = localeData.locale;
+
+    return <T extends Keys>(
+      key: T,
+      values?: Record<string, any>
+    ): TraverseLocaleMap<Split<T, ".">, Locales> => {
+      const optic = optic_<typeof localeData>().path(key);
+      const msgRaw = get(optic)(localeData);
+      if (typeof msgRaw !== "string")
+        throw new Error("Message is not a string");
+      const msg = new IntlMessageFormat(msgRaw, localeKey);
+      return msgRaw;
+    };
+  };
+};
+
+type A = TraverseLocaleMap<Split<"title", ".">, TestLocales>;
+
+export { createTranslations };

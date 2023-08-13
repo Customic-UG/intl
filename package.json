@@ -1,0 +1,57 @@
+{
+  "name": "@customic/intl",
+  "author": "Nander (nander@duck.com)",
+  "version": "0.1.0",
+  "description": "Debloated internationalization for Next.js",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "unbuild",
+    "dev": "cd test && pnpm dev"
+  },
+  "keywords": [
+    "next",
+    "react",
+    "next-i18n",
+    "react-i18n",
+    "next-intl",
+    "react-intl",
+    "internationalization",
+    "intl",
+    "i18n",
+    "internationalisation"
+  ],
+  "devDependencies": {
+    "@types/negotiator": "^0.6.1",
+    "@types/react": "^18.2.18",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.3",
+    "next": "^13.4.13",
+    "prettier": "^3.0.1",
+    "type-fest": "^4.2.0",
+    "typescript": "^5.1.6",
+    "unbuild": "2.0.0-rc.0"
+  },
+  "dependencies": {
+    "@formatjs/intl-localematcher": "^0.4.0",
+    "client-only": "^0.0.1",
+    "intl-messageformat": "^10.5.0",
+    "monocle-ts": "^2.3.13",
+    "negotiator": "^0.6.3",
+    "optics-ts": "^2.4.1",
+    "react": "canary",
+    "server-only": "^0.0.1",
+    "tslib": "^2.6.1"
+  }
+}
