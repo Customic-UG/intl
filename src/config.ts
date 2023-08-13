@@ -2,14 +2,16 @@ import { cookies as NextCookies, headers as NextHeaders } from "next/headers";
 import { getLocale } from "./locale";
 import { IntlMessageFormat } from "intl-messageformat";
 import { optic_, get } from "optics-ts";
-import { Split, ValueOf } from "type-fest";
+import { Simplify, Split, ValueOf } from "type-fest";
 
 type LocaleEntry = string | { [key: string]: LocaleEntry };
 
 type LocaleMap = Record<
   string,
   {
-    // IETF BCP 47 language tag
+    /**
+     * IETF BCP 47 language tag
+     */
     locale: string;
     [key: string]: LocaleEntry;
   }
@@ -47,8 +49,8 @@ const createTranslations = async <
   const Locales extends LocaleMap | (() => Promise<LocaleMap>),
   UnwrappedLocales extends Locales extends LocaleMap
     ? Locales
-    : Locales extends () => Promise<LocaleMap>
-    ? Awaited<ReturnType<Locales>>
+    : Locales extends () => Promise<infer P>
+    ? P
     : never,
 >({
   ...config
@@ -56,9 +58,10 @@ const createTranslations = async <
   defaultLocale: keyof UnwrappedLocales;
   locales: Locales;
 }) => {
-  const availableLocales = (await Promise.resolve(
-    config.locales
-  )) as UnwrappedLocales;
+  const availableLocales =
+    typeof config.locales === "function"
+      ? await config.locales()
+      : (config.locales as LocaleMap);
   const localeKeys = Object.keys(availableLocales);
   const defaultLocale = config.defaultLocale as string;
   return ({
@@ -73,7 +76,7 @@ const createTranslations = async <
     const localeKey = localeData.locale;
 
     return <Key extends string>(
-      key: Key
+      key: Key,
       //values?: Record<string, any>
     ): TraverseLocaleMap<Split<Key, ".">, UnwrappedLocales> => {
       const optic = optic_().path(key);
@@ -107,7 +110,7 @@ type CreateTranslations = <
     headers: typeof NextHeaders;
     cookies: typeof NextCookies;
   }) => <Key extends string>(
-    key: Key
+    key: Key,
   ) => TraverseLocaleMap<Split<Key, ".">, UnwrappedLocales>
 >;
 declare const a: CreateTranslations;
@@ -120,11 +123,12 @@ const _ = async () => {
         en: {
           locale: "en",
           test: "hello",
-          pech: "lol",
+          enOnly: "english",
         },
         de: {
           locale: "de",
           test: "hallo",
+          deOnly: "deutsch",
         },
       }) as const,
   });
@@ -134,33 +138,15 @@ const _ = async () => {
     cookies: null as unknown as typeof NextCookies,
   });
 
-  const _ = t("test");
-  //      ^?
-};
+  const union = t("test");
+  //    ^?
+  type Union = Simplify<typeof union>;
+  //    ^?
 
-const test2 = async () => {
-  const translator = await createTranslations({
-    defaultLocale: "de",
-    locales: async () =>
-      ({
-        en: {
-          locale: "en",
-          test: "hello",
-          pech: "lol",
-        },
-        de: {
-          locale: "de",
-          test: "hallo",
-        },
-      }) as const,
-  });
-
-  const t = translator({
-    headers: null as unknown as typeof NextHeaders,
-    cookies: null as unknown as typeof NextCookies,
-  });
-
-  const _ = t("test");
+  const possiblyUndefined = t("deOnly");
+  //    ^?
+  type PossibleUndefined = Simplify<typeof possiblyUndefined>;
+  //    ^?
 };
 
 export { createTranslations };

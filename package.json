@@ -9,6 +9,7 @@
   "files": [
     "dist"
   ],
+  "packageManager": "pnpm@8.6.12",
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
@@ -18,7 +19,12 @@
   },
   "scripts": {
     "build": "unbuild",
-    "dev": "cd test && pnpm dev"
+    "dev": "cd test && pnpm dev",
+    "prepare": "husky install",
+    "format": "prettier --write ."
+  },
+  "lint-staged": {
+    "*.{md,json,ts,tsx,js}": "prettier --write"
   },
   "keywords": [
     "next",
@@ -34,9 +40,9 @@
   ],
   "devDependencies": {
     "@types/negotiator": "^0.6.1",
-    "@types/react": "^18.2.18",
+    "@types/react": "^18.2.20",
     "husky": "^8.0.3",
-    "lint-staged": "^13.2.3",
+    "lint-staged": "^13.3.0",
     "next": "^13.4.13",
     "prettier": "^3.0.1",
     "type-fest": "^4.2.0",

@@ -1,4 +1,9 @@
 {
   "locale": "de",
-  "title": "Hallo Welt"
+  "title": "Hallo Welt",
+  "index": {
+    "title": "Hallo Index",
+    "name": "Max Mustermann"
+  },
+  "deOnly": "123"
 }
